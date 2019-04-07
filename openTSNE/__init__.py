@@ -1,1 +1,1 @@
-from .tsne import TSNE, TSNEEmbedding, PartialTSNEEmbedding, OptimizationInterrupt
+from openTSNE.tsne import TSNE, TSNEEmbedding, PartialTSNEEmbedding, OptimizationInterrupt

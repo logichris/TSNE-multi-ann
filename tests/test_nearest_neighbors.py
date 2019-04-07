@@ -38,6 +38,24 @@ class KNNIndexTestMixin:
             self.assertEqual(indices.shape, (n_samples, k))
             self.assertEqual(neighbors.shape, (n_samples, k))
 
+    def test_returns_same_result_when_random_state_set(self):
+        index1: nearest_neighbors.KNNIndex = self.knn_index("euclidean", random_state=0)
+        index2: nearest_neighbors.KNNIndex = self.knn_index("euclidean", random_state=0)
+        k = 5
+
+        index1.build(self.x1)
+        index2.build(self.x1)
+
+        indices1, distances1 = index1.query_train(self.x1, k)
+        indices2, distances2 = index2.query_train(self.x1, k)
+        np.testing.assert_equal(indices1, indices2)
+        np.testing.assert_equal(distances1, distances2)
+
+        indices1, distances1 = index1.query(self.x2, k)
+        indices2, distances2 = index2.query(self.x2, k)
+        np.testing.assert_equal(indices1, indices2)
+        np.testing.assert_equal(distances1, distances2)
+
 
 class TestBallTree(KNNIndexTestMixin, unittest.TestCase):
     knn_index = nearest_neighbors.BallTree

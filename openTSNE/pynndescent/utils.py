@@ -6,6 +6,12 @@ import numba
 import numpy as np
 
 
+@numba.njit("void(i8[:], i8)")
+def seed(rng_state, seed):
+    """Seed the random number generator with a given seed."""
+    rng_state.fill(seed + 0xFFFF)
+
+
 @numba.njit("i4(i8[:])")
 def tau_rand_int(state):
     """A fast (pseudo)-random number generator.
@@ -46,7 +52,7 @@ def tau_rand(state):
     A (pseudo)-random float32 in the interval [0, 1]
     """
     integer = tau_rand_int(state)
-    return float(integer) / 0x7FFFFFFF
+    return abs(float(integer) / 0x7FFFFFFF)
 
 
 @numba.njit(fastmath=True)
@@ -126,7 +132,7 @@ def make_heap(n_points, size):
     -------
     heap: An ndarray suitable for passing to other numba enabled heap functions.
     """
-    result = np.zeros((3, n_points, size))
+    result = np.zeros((3, int(n_points), int(size)), dtype=np.float64)
     result[0] = -1
     result[1] = np.infty
     result[2] = 0
@@ -163,6 +169,7 @@ def heap_push(heap, row, weight, index, flag):
     -------
     success: The number of new elements successfully pushed into the heap.
     """
+    row = int(row)
     indices = heap[0, row]
     weights = heap[1, row]
     is_new = heap[2, row]
@@ -365,6 +372,24 @@ def deheap_sort(heap):
 
 @numba.njit("i8(f8[:, :, :],i8)")
 def smallest_flagged(heap, row):
+    """Search the heap for the smallest element that is
+    still flagged.
+
+    Parameters
+    ----------
+    heap: array of shape (3, n_samples, n_neighbors)
+        The heaps to search
+
+    row: int
+        Which of the heaps to search
+
+    Returns
+    -------
+    index: int
+        The index of the smallest flagged element
+        of the ``row``th heap, or -1 if no flagged
+        elements remain in the heap.
+    """
     ind = heap[0, row]
     dist = heap[1, row]
     flag = heap[2, row]
@@ -389,18 +414,24 @@ def build_candidates(current_graph, n_vertices, n_neighbors, max_candidates, rng
     """Build a heap of candidate neighbors for nearest neighbor descent. For
     each vertex the candidate neighbors are any current neighbors, and any
     vertices that have the vertex as one of their nearest neighbors.
+
     Parameters
     ----------
     current_graph: heap
         The current state of the graph for nearest neighbor descent.
+
     n_vertices: int
         The total number of vertices in the graph.
+
     n_neighbors: int
         The number of neighbor edges per node in the current graph.
+
     max_candidates: int
         The maximum number of new candidate neighbors.
+
     rng_state: array of int64, shape (3,)
         The internal state of the rng
+
     Returns
     -------
     candidate_neighbors: A heap with an array of (randomly sorted) candidate
@@ -423,7 +454,13 @@ def build_candidates(current_graph, n_vertices, n_neighbors, max_candidates, rng
 
 @numba.njit(parallel=True)
 def new_build_candidates(
-    current_graph, n_vertices, n_neighbors, max_candidates, rng_state, rho=0.5
+    current_graph,
+    n_vertices,
+    n_neighbors,
+    max_candidates,
+    rng_state,
+    rho=0.5,
+    seed_per_row=False,
 ):
     """Build a heap of candidate neighbors for nearest neighbor descent. For
     each vertex the candidate neighbors are any current neighbors, and any
@@ -454,7 +491,9 @@ def new_build_candidates(
     new_candidate_neighbors = make_heap(n_vertices, max_candidates)
     old_candidate_neighbors = make_heap(n_vertices, max_candidates)
 
-    for i in numba.prange(n_vertices):
+    for i in range(n_vertices):
+        if seed_per_row:
+            seed(rng_state, i)
         for j in range(n_neighbors):
             if current_graph[0, i, j] < 0:
                 continue

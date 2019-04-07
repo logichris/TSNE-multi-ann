@@ -1,34 +1,8 @@
-import sys
-
 import numpy as np
-from sklearn import neighbors
-from sklearn.utils import check_random_state
 from openTSNE.vptree import VPTree as c_vptree
+from sklearn import neighbors
 
-# In case we're running on a 32bit system, we have to properly handle numba's
-# ``parallel`` directive, which throws a ``RuntimeError``. It is important to
-# patch this before importing ``pynndescent`` which heavily relies on numba
-uns1 = sys.platform.startswith("win32") and sys.version_info[:2] == (2, 7)
-uns2 = sys.maxsize <= 2 ** 32
-if uns1 or uns2:
-    import numba
-
-    __njit_copy = numba.njit
-
-    # Ignore njit decorator and run raw Python function
-    def __njit_wrapper(*args, **kwargs):
-        return lambda f: f
-
-    numba.njit = __njit_wrapper
-
-    from . import pynndescent
-
-    pynndescent.pynndescent_.numba.njit = __njit_wrapper
-    pynndescent.distances.numba.njit = __njit_wrapper
-    pynndescent.rp_trees.numba.njit = __njit_wrapper
-    pynndescent.utils.numba.njit = __njit_wrapper
-
-from . import pynndescent
+import openTSNE.pynndescent as pynndescent
 
 
 class KNNIndex:
@@ -109,12 +83,17 @@ class NNDescent(KNNIndex):
         n_trees = 5 + int(round((data.shape[0]) ** 0.5 / 20))
         n_iters = max(5, int(round(np.log2(data.shape[0]))))
 
+        if self.metric_params is None:
+            metric_kwds = {}
+        else:
+            metric_kwds = self.metric_params
+
         # UMAP uses the "alternative" algorithm, but that sometimes causes
         # memory corruption, so use the standard one, which seems to work fine
         self.index = pynndescent.NNDescent(
             data,
             metric=self.metric,
-            metric_kwds=self.metric_params,
+            metric_kwds=metric_kwds,
             random_state=self.random_state,
             n_trees=n_trees,
             n_iters=n_iters,
