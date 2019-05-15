@@ -159,13 +159,15 @@ class Annoy(KNNIndex):
         if search_k is None:
             search_k = -1
 
-        random_state = check_random_state(self.random_state)
-        self.index = AnnoyIndex(data, metric=metric, random_state=random_state)
+        self.index = AnnoyIndex(data, metric=metric, random_state=self.random_state)
         self.index.build(n_trees)
         indices, distances = self.index.query_train(
             k + 1, search_k=search_k, num_threads=self.n_jobs
         )
         return indices[:, 1:], distances[:, 1:]
 
-    def query(self, query, k):
-        return self.index.query(query, k=k, queue_size=1)
+    def query(self, query, k, search_k=None):
+        if search_k is None:
+            search_k = -1
+
+        return self.index.query(query, k=k, search_k=search_k)

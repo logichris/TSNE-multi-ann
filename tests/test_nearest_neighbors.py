@@ -42,6 +42,10 @@ class TestBallTree(KNNIndexTestMixin, unittest.TestCase):
     knn_index = nearest_neighbors.BallTree
 
 
+class TestAnnoy(KNNIndexTestMixin, unittest.TestCase):
+    knn_index = nearest_neighbors.Annoy
+
+
 class TestNNDescent(KNNIndexTestMixin, unittest.TestCase):
     knn_index = nearest_neighbors.NNDescent
 
