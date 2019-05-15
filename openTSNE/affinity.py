@@ -258,6 +258,7 @@ def build_knn_index(
     methods = {
         "exact": nearest_neighbors.BallTree,
         "approx": nearest_neighbors.NNDescent,
+        "annoy": nearest_neighbors.Annoy,
     }
     if isinstance(method, nearest_neighbors.KNNIndex):
         knn_index = method

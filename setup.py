@@ -135,6 +135,7 @@ extensions = [
     Extension("openTSNE.quad_tree", ["openTSNE/quad_tree.pyx"]),
     Extension("openTSNE._tsne", ["openTSNE/_tsne.pyx"]),
     Extension("openTSNE.kl_divergence", ["openTSNE/kl_divergence.pyx"]),
+    Extension("openTSNE._annoy", ["openTSNE/_annoy.pyx"]),
 ]
 
 # Check if we have access to FFTW3 and if so, use that implementation
@@ -205,6 +206,7 @@ setup(
         "numba>=0.38.1",
         "scikit-learn>=0.20",
         "scipy",
+        "annoy",
     ],
 
     ext_modules=extensions,

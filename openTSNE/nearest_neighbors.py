@@ -138,3 +138,32 @@ class NNDescent(KNNIndex):
 
     def query(self, query, k):
         return self.index.query(query, k=k, queue_size=1)
+
+
+class Annoy(KNNIndex):
+    VALID_METRICS = ["cosine", "euclidean", "manhattan", "hamming", "dot"]
+
+    def build(self, data, k, n_trees=50, search_k=None):
+        from openTSNE._annoy import AnnoyIndex
+
+        self.check_metric(self.metric)
+        metric = {
+            "cosine": "angular",
+            "euclidean": "euclidean",
+            "manhattan": "manhattan",
+            "hamming": "hamming",
+            "dot": "dot",
+        }[self.metric]
+
+        if search_k is None:
+            search_k = -1
+
+        self.index = AnnoyIndex(data, metric=metric)
+        self.index.build(n_trees)
+        indices, distances = self.index.query_train(
+            k + 1, search_k=search_k, num_threads=self.n_jobs
+        )
+        return indices[:, 1:], distances[:, 1:]
+
+    def query(self, query, k):
+        return self.index.query(query, k=k, queue_size=1)
