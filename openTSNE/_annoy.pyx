@@ -17,7 +17,7 @@ cdef class AnnoyIndex:
     cdef Py_ssize_t n_training_samples
     cdef Py_ssize_t n_dims
 
-    def __init__(self, np.float64_t[:, :] data, str metric):
+    def __init__(self, np.float64_t[:, :] data, str metric, random_state=None):
         cdef:
             Py_ssize_t n_samples = data.shape[0]
             Py_ssize_t n_dim = data.shape[1]
@@ -25,6 +25,8 @@ cdef class AnnoyIndex:
         self.n_training_samples = n_samples
         self.n_dims = n_dim
         self.index = annoylib.Annoy(n_dim, metric)
+        if random_state is not None:
+            self.index.set_seed(random_state)
         self.add_items(data)
 
     cpdef add_items(self, np.float64_t[:, :] items):

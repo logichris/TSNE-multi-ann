@@ -2,6 +2,7 @@ import sys
 
 import numpy as np
 from sklearn import neighbors
+from sklearn.utils import check_random_state
 
 # In case we're running on a 32bit system, we have to properly handle numba's
 # ``parallel`` directive, which throws a ``RuntimeError``. It is important to
@@ -158,7 +159,8 @@ class Annoy(KNNIndex):
         if search_k is None:
             search_k = -1
 
-        self.index = AnnoyIndex(data, metric=metric)
+        random_state = check_random_state(self.random_state)
+        self.index = AnnoyIndex(data, metric=metric, random_state=random_state)
         self.index.build(n_trees)
         indices, distances = self.index.query_train(
             k + 1, search_k=search_k, num_threads=self.n_jobs
