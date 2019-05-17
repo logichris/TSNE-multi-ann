@@ -3,6 +3,9 @@ import sys
 import numpy as np
 from sklearn import neighbors
 
+from annoy import AnnoyIndex
+import random
+
 # In case we're running on a 32bit system, we have to properly handle numba's
 # ``parallel`` directive, which throws a ``RuntimeError``. It is important to
 # patch this before importing ``pynndescent`` which heavily relies on numba
@@ -40,17 +43,12 @@ class KNNIndex:
         self.random_state = random_state
 
     def build(self, data, k):
-        """Build the nearest neighbor index on the training data.
-
-        Builds an index on the training data and computes the nearest neighbors
-        on the training data.
+        """Build the index so we can query nearest neighbors.
 
         Parameters
         ----------
         data: array_like
-            Training data.
         k: int
-            The number of nearest neighbors to compute on the training data.
 
         Returns
         -------
@@ -60,22 +58,7 @@ class KNNIndex:
         """
 
     def query(self, query, k):
-        """Query the index with new points.
-
-        Finds k nearest neighbors from the training data to each row of the
-        query data.
-
-        Parameters
-        ----------
-        query: array_like
-        k: int
-
-        Returns
-        -------
-        indices: np.ndarray
-        distances: np.ndarray
-
-        """
+        """Query the index with new points."""
 
     def check_metric(self, metric):
         """Check that the metric is supported by the KNNIndex instance."""
@@ -110,20 +93,25 @@ class BallTree(KNNIndex):
 
 
 class NNDescent(KNNIndex):
+    # Define valid metrics for metrics-check (metric="euclidean",)
     VALID_METRICS = pynndescent.distances.named_distances
 
     def build(self, data, k):
+        # check if used metric is supported (metric="euclidean",)
         self.check_metric(self.metric)
 
         # These values were taken from UMAP, which we assume to be sensible defaults
+        # define appropriate number of trees for nndescent
         n_trees = 5 + int(round((data.shape[0]) ** 0.5 / 20))
+        # define appropriate number of iterations for nndescent
         n_iters = max(5, int(round(np.log2(data.shape[0]))))
 
         # UMAP uses the "alternative" algorithm, but that sometimes causes
         # memory corruption, so use the standard one, which seems to work fine
+        # run/create a NNDescent object
         self.index = pynndescent.NNDescent(
             data,
-            n_neighbors=15,
+            n_neighbors=k + 1,
             metric=self.metric,
             metric_kwds=self.metric_params,
             random_state=self.random_state,
@@ -133,8 +121,49 @@ class NNDescent(KNNIndex):
             max_candidates=60,
         )
 
-        indices, distances = self.index.query(data, k=k + 1, queue_size=1)
+        indices, distances = self.index._neighbor_graph
         return indices[:, 1:], distances[:, 1:]
 
     def query(self, query, k):
         return self.index.query(query, k=k, queue_size=1)
+
+
+from . import annoy
+
+class Annoy(KNNIndex):
+    # Define valid metrics for metrics-check (metric="euclidean",)
+    VALID_METRICS = pynndescent.distances.named_distances
+
+    def build(self, data, k):
+        # check if used metric is supported (metric="euclidean",)
+        self.check_metric(self.metric)
+
+        # These values were taken from UMAP, which we assume to be sensible defaults
+        # define appropriate number of trees for nndescent
+        n_trees = 5 + int(round((data.shape[0]) ** 0.5 / 20))
+        # define appropriate number of iterations for nndescent
+        n_iters = max(5, int(round(np.log2(data.shape[0]))))
+
+        # UMAP uses the "alternative" algorithm, but that sometimes causes
+        # memory corruption, so use the standard one, which seems to work fine
+        # run/create a NNDescent object
+        self.index = annoy.Annoy(
+            data,
+            n_neighbors=k + 1,
+            metric=self.metric,
+            metric_kwds=self.metric_params,
+            random_state=self.random_state,
+            n_trees=n_trees,
+            n_iters=n_iters,
+            #algorithm="standard",
+            max_candidates=60,
+        )
+
+        indices, distances = self.index._neighbor_graph
+        return indices[:, 1:], distances[:, 1:]
+
+    def query(self, query, k):
+        return self.index.query(query, k=k, queue_size=1)
+
+
+class
